@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PDF Merge • Professional</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+  <style>
+    body { font-family: 'Inter', system-ui, sans-serif; }
+    .glass { background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(12px); }
+    .dark .glass { background: rgba(15, 23, 42, 0.7); }
+    .drop-zone { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+    .file-item { transition: all 0.2s cubic-bezier(0.4, 0.0, 0.2, 1); }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-200 min-h-screen">
+
+  <div class="max-w-3xl mx-auto px-6 py-12">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-10">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 bg-blue-600 rounded-2xl flex items-center justify-center text-white font-bold text-2xl">📄</div>
+        <div>
+          <h1 class="text-3xl font-semibold tracking-tight">PDF Merge</h1>
+          <p class="text-slate-400 text-sm">Combine • Reorder • Download</p>
+        </div>
+      </div>
+      <div class="text-xs text-slate-500">100% Client-side • Private</div>
+    </div>
+
+    <div class="glass border border-slate-700 rounded-3xl p-8 shadow-2xl">
+
+      <!-- Upload Area -->
+      <div id="dropZone" 
+           class="drop-zone border-2 border-dashed border-slate-600 hover:border-blue-500 rounded-2xl p-16 text-center cursor-pointer">
+        <i class="fa-solid fa-cloud-arrow-up text-6xl text-slate-400 mb-6"></i>
+        <p class="text-xl font-medium mb-2">Drop your PDF files here</p>
+        <p class="text-slate-400 mb-6">or</p>
+        <button onclick="document.getElementById('fileInput').click()" 
+                class="bg-blue-600 hover:bg-blue-700 px-8 py-3.5 rounded-2xl font-medium transition-colors flex items-center gap-2 mx-auto">
+          <i class="fa-solid fa-folder-open"></i>
+          Browse Files
+        </button>
+        <input type="file" id="fileInput" multiple accept=".pdf" class="hidden">
+        <p class="text-xs text-slate-500 mt-6">Supports multiple PDF files • Max size depends on your device</p>
+      </div>
+
+      <!-- File List -->
+      <div class="mt-10">
+        <div class="flex items-center justify-between mb-4 px-1">
+          <h3 class="font-medium text-lg flex items-center gap-2">
+            <i class="fa-solid fa-list"></i> 
+            Selected Files
+          </h3>
+          <span id="fileCount" class="text-sm text-slate-400">0 files</span>
+        </div>
+        
+        <ul id="fileList" class="space-y-3 min-h-[100px]"></ul>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex gap-4 mt-10">
+        <button id="mergeBtn" 
+                onclick="mergePDFs()" 
+                disabled
+                class="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 disabled:cursor-not-allowed py-4 rounded-2xl font-semibold text-lg transition-all flex items-center justify-center gap-3">
+          <i class="fa-solid fa-file-export"></i>
+          Merge PDFs
+        </button>
+        
+        <button onclick="clearAll()" 
+                class="px-8 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-2xl font-medium transition-colors">
+          Clear All
+        </button>
+      </div>
+
+      <div id="status" class="mt-6 text-center text-sm font-medium min-h-[24px]"></div>
+    </div>
+
+    <!-- Footer -->
+    <div class="text-center mt-12">
+      <p class="text-slate-500 text-sm">
+        Developed by <span class="text-blue-400 font-medium">Aditya Aslami</span>
+      </p>
+      <p class="text-slate-600 text-xs mt-1">Built with privacy in mind • All processing happens in your browser</p>
+    </div>
+  </div>
+
+  <script>
+    let files = [];
+
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const fileListEl = document.getElementById('fileList');
+    const mergeBtn = document.getElementById('mergeBtn');
+    const fileCount = document.getElementById('fileCount');
+
+    // Tailwind script already loaded via CDN
+
+    // Drag & Drop
+    dropZone.addEventListener('dragover', e => {
+      e.preventDefault();
+      dropZone.classList.add('border-blue-500', 'bg-slate-900/50');
+    });
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.classList.remove('border-blue-500', 'bg-slate-900/50');
+    });
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault();
+      dropZone.classList.remove('border-blue-500', 'bg-slate-900/50');
+      handleFiles(e.dataTransfer.files);
+    });
+
+    fileInput.addEventListener('change', e => handleFiles(e.target.files));
+
+    function handleFiles(fileList) {
+      for (let file of fileList) {
+        if (file.type === 'application/pdf') {
+          files.push(file);
+        } else {
+          alert(`"${file.name}" is not a PDF file`);
+        }
+      }
+      renderFileList();
+    }
+
+    function renderFileList() {
+      fileListEl.innerHTML = '';
+      fileCount.textContent = `${files.length} file${files.length !== 1 ? 's' : ''}`;
+
+      files.forEach((file, index) => {
+        const li = document.createElement('li');
+        li.className = `file-item flex items-center gap-4 bg-slate-900 border border-slate-700 hover:border-slate-500 rounded-2xl p-4 group`;
+        li.draggable = true;
+        
+        li.innerHTML = `
+          <div class="flex-1 flex items-center gap-3">
+            <i class="fa-solid fa-file-pdf text-red-400 text-2xl"></i>
+            <div class="min-w-0">
+              <p class="font-medium text-sm truncate">${file.name}</p>
+              <p class="text-xs text-slate-400">${(file.size / (1024*1024)).toFixed(2)} MB</p>
+            </div>
+          </div>
+          <button onclick="removeFile(${index}); event.stopImmediatePropagation()" 
+                  class="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-500 transition-all p-2">
+            <i class="fa-solid fa-trash"></i>
+          </button>
+        `;
+
+        // Drag & Drop reordering
+        li.addEventListener('dragstart', e => {
+          e.dataTransfer.setData('text/plain', index);
+          li.classList.add('opacity-50');
+        });
+        li.addEventListener('dragend', () => li.classList.remove('opacity-50'));
+        li.addEventListener('dragover', e => e.preventDefault());
+        li.addEventListener('drop', e => {
+          e.preventDefault();
+          const fromIndex = parseInt(e.dataTransfer.getData('text/plain'));
+          if (fromIndex !== index) {
+            const [movedFile] = files.splice(fromIndex, 1);
+            files.splice(index, 0, movedFile);
+            renderFileList();
+          }
+        });
+
+        fileListEl.appendChild(li);
+      });
+
+      mergeBtn.disabled = files.length < 2;
+    }
+
+    function removeFile(index) {
+      files.splice(index, 1);
+      renderFileList();
+    }
+
+    function clearAll() {
+      if (confirm("Clear all files?")) {
+        files = [];
+        renderFileList();
+      }
+    }
+
+    async function mergePDFs() {
+      if (files.length < 2) return;
+
+      const status = document.getElementById('status');
+      status.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Merging PDFs... Please wait`;
+
+      try {
+        const mergedPdf = await PDFLib.PDFDocument.create();
+
+        for (let file of files) {
+          const arrayBuffer = await file.arrayBuffer();
+          const pdf = await PDFLib.PDFDocument.load(arrayBuffer);
+          const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+          copiedPages.forEach(page => mergedPdf.addPage(page));
+        }
+
+        const pdfBytes = await mergedPdf.save();
+        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `merged_${new Date().toISOString().slice(0,10)}.pdf`;
+        a.click();
+
+        URL.revokeObjectURL(url);
+        status.innerHTML = `<span class="text-green-400">✅ Merge successful! File downloaded.</span>`;
+      } catch (err) {
+        console.error(err);
+        status.innerHTML = `<span class="text-red-400">❌ Failed to merge. Please try again.</span>`;
+      }
+    }
+
+    // Keyboard shortcut
+    document.addEventListener('keydown', e => {
+      if (e.ctrlKey && e.key === 'o') {
+        e.preventDefault();
+        fileInput.click();
+      }
+    });
+  </script>
+</body>
+</html>
